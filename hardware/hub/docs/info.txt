@@ -1,0 +1,115 @@
+
+Productnaam: 		RadioBerry Hub 2350
+Korte naam op PCB: 	RB Hub 2350
+Ondertitel:			RP2350 Ethernet hub for RadioBerry SDR and Radio control
+
+
+
+The RadioBerry Hub 2350 is an RP2350-based Ethernet and USB-C host/controller board for the RadioBerry ecosystem. 
+It can act as a standalone host for the RadioBerry SDR card and as a control hub for radio controller applications.
+
+
+
+Het idee onstond bij het bekijken van een interessant project genaamd 'μSDR–Pico' van Arjan te Marvelde.
+
+Ik zag een leuk ecosystem ontstaan rondom de radioberry. 
+
+Het eerste idee is om de raspberry pi te vervangen door de RadioBerry Hub 2350. 
+De microcontroller rp2350 zorgt voor laden van de gateware en implementeert het openhpsdr protocol-1 om de  radio
+operationeel te krijgen via de ethernet (100Mb) optie.
+
+Een ander idee is om via de connector op de achterkant een board te plaatsen die zorgt voor de audio,
+mic in en audio uit maar ook de mogelijkheid voor een paar knoppen en een bijbehorend display zoals Arjan dit
+voor zijn project heeft gedaan.
+
+Verder moet de hub ook gebruikt kunnen worden om andere radio functies, zoals een Power amplifier controller, te kunnen maken.
+
+
+Kortom voldoende inspiratie voor een aantal leuke software/ hardware projecten op basis van deze nieuwe radioberry hub 2350 module.
+
+
+code aangepast voor hub 2350 board; 
+loopback
+in wsl 
+echo "hallo vanaf wsl" | nc -w 2 192.168.10.2 5000 
+
+
+
+
+nieuw idee
+
+pcb vergelijkbaar met rpi-5 footprint 
+
+op de achterkant een connector om naar enhanced boad te connecten.
+
+
+base board bestaat uit pico 2 en ehternet module en connector en voeding via usb-c
+
+
+
+TFT scherm:
+
+https://www.tinytronics.nl/en/displays/tft/2.8-inch-tft-display-240*320-pixels-with-touchscreen-spi-ili9341
+
+
+Ethernet module:
+
+w5500  8 pins.  (https://github.com/WIZnet-ioNIC/WIZnet-PICO-C voor implementatie)
+
+I	GPIO16	Connected to MISO on W5500
+O	GPIO17	Connected to CSn on W5500
+O	GPIO18	Connected to SCLK on W5500
+O	GPIO19	Connected to MOSI on W5500
+O	GPIO20	Connected to RSTn on W5500
+I	GPIO21	Connected to INTn on W5500
+
+O	GPIO25	Connected to user LED  (link ledje )
+
+
+
+board connectoren:
+
+op top:
+- usb-c voor +5V
+- 40 pins male voor rb geen thl pins!
+
+
+op bottom:
+
+- 12 pins male voor connectie met front (voor spi display + buttons)
+- lf in en mic in. eventueel ook lf in
+- x pins connector male voor ethernet module
+- connector voor debug
+- connector voor switch for laden firmware.
+
+
+board
+
+- pico 
+- tlv320
+
+
+
+verdere info
+
+https://github.com/dawsonjon
+https://github.com/w9ran
+
+
+
+
+
+En toen kwam ik deze tegen:
+
+RP2350-PiZero-ontwikkelbord
+
+Waveshare RP2350-PiZero Development Board Raspberry Pi Pico 2 Base On RP2350B 16M Flash DVI PIO-USB Interface Microcontroller
+
+40PIN GPIO header
+Compatible with some Raspberry Pi HATs
+
+15 euro!
+https://nl.aliexpress.com/item/1005009474968204.html?spm=a2g0o.order_list.order_list_main.4.3a3b79d2dBUpd3&gatewayAdapt=glo2nld
+
+
+www.waveshare.com/wiki/RP2350-PiZero
