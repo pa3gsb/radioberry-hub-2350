@@ -1,0 +1,66 @@
+# =========================
+# Build output
+# =========================
+build/
+build-*/
+out/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# Pico SDK generated output
+*.uf2
+*.elf
+*.bin
+*.hex
+*.map
+*.dis
+*.lst
+
+# Object files and libraries
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+*.dylib
+*.exe
+
+# Dependency files
+*.d
+*.dep
+
+# Debugging
+*.gdb
+*.log
+openocd.log
+
+# VS Code local files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/c_cpp_properties.json
+
+# CMake Tools local settings
+CMakeUserPresets.json
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary and backup files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
