@@ -3,9 +3,30 @@
 #include "wizchip_conf.h"
 #include "wizchip_spi.h"
 #include "socket.h"
+#include "dhcp.h"
+
+#include "pico/time.h"
 
 #include <limits.h>
+#include <stdio.h>
 #include <string.h>
+
+#define W5500_DHCP_SOCKET       1u
+#define W5500_DHCP_BUFFER_SIZE  548u
+#define W5500_DHCP_TIMEOUT_MS   30000u
+
+static uint8_t dhcp_buffer[W5500_DHCP_BUFFER_SIZE];
+static bool dhcp_active;
+static uint64_t dhcp_last_tick_us;
+
+static void w5500_dhcp_tick(void)
+{
+    uint64_t now_us = time_us_64();
+    while (now_us - dhcp_last_tick_us >= 1000000u) {
+        DHCP_time_handler();
+        dhcp_last_tick_us += 1000000u;
+    }
+}
 
 bool w5500_network_init(const w5500_network_config_t *config)
 {
@@ -27,8 +48,60 @@ bool w5500_network_init(const w5500_network_config_t *config)
     wizchip_initialize();
     wizchip_check();
     network_initialize(net_info);
+
+    if (config->use_dhcp) {
+        uint8_t phy_link = PHY_LINK_OFF;
+        (void)ctlwizchip(CW_GET_PHYLINK, &phy_link);
+        printf("DHCP: lease aanvragen (link=%s, socket=%u, tx=%uKB, rx=%uKB)...\n",
+               phy_link == PHY_LINK_ON ? "up" : "down",
+               (unsigned)W5500_DHCP_SOCKET,
+               (unsigned)getSn_TXBUF_SIZE(W5500_DHCP_SOCKET),
+               (unsigned)getSn_RXBUF_SIZE(W5500_DHCP_SOCKET));
+        DHCP_init(W5500_DHCP_SOCKET, dhcp_buffer);
+        dhcp_last_tick_us = time_us_64();
+        uint64_t deadline_us = dhcp_last_tick_us +
+                               (uint64_t)W5500_DHCP_TIMEOUT_MS * 1000u;
+        uint64_t diagnostic_us = dhcp_last_tick_us;
+
+        while (time_us_64() < deadline_us) {
+            w5500_dhcp_tick();
+            uint8_t state = DHCP_run();
+            if (state == DHCP_IP_ASSIGN || state == DHCP_IP_CHANGED ||
+                state == DHCP_IP_LEASED) {
+                dhcp_active = true;
+                printf("DHCP: lease ontvangen\n");
+                print_network_information(net_info);
+                return true;
+            }
+            uint64_t now_us = time_us_64();
+            if (now_us - diagnostic_us >= 1000000u) {
+                printf("DHCP: state=%u socket_status=0x%02x rx=%u\n",
+                       (unsigned)state,
+                       (unsigned)getSn_SR(W5500_DHCP_SOCKET),
+                       (unsigned)getSn_RX_RSR(W5500_DHCP_SOCKET));
+                diagnostic_us = now_us;
+            }
+            sleep_ms(10u);
+        }
+
+        printf("DHCP: geen lease, statisch fallback-adres gebruiken\n");
+        DHCP_stop();
+        net_info.dhcp = NETINFO_STATIC;
+        network_initialize(net_info);
+    }
+
     print_network_information(net_info);
     return true;
+}
+
+void w5500_network_poll(void)
+{
+    if (!dhcp_active) {
+        return;
+    }
+
+    w5500_dhcp_tick();
+    (void)DHCP_run();
 }
 
 

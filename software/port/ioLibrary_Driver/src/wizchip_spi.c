@@ -334,18 +334,24 @@ void wizchip_initialize(void)
 #elif (_WIZCHIP_ == W5500)
     /*
         TX/RX bufferverdeling.
-        Voor één UDP throughput socket is dit beter dan 2 KB per socket.
+        Socket 0 verwerkt de HPSDR-stream; socket 1 wordt gebruikt voor DHCP.
+        W5500-socketbuffers ondersteunen alleen machten van twee en mogen samen
+        maximaal 16 KB per richting gebruiken.
 
         Socket 0:
-        TX = 16 KB
-        RX = 16 KB
+        TX = 8 KB
+        RX = 8 KB
 
-        Andere sockets:
+        Socket 1:
+        TX = 2 KB
+        RX = 2 KB
+
+        Overige sockets:
         0 KB
     */
     uint8_t memsize[2][8] = {
-        {16, 0, 0, 0, 0, 0, 0, 0},
-        {16, 0, 0, 0, 0, 0, 0, 0}
+        {8, 2, 0, 0, 0, 0, 0, 0},
+        {8, 2, 0, 0, 0, 0, 0, 0}
     };
 #elif (_WIZCHIP_ == W6100)
     uint8_t memsize[2][8] = {

@@ -12,6 +12,7 @@ static size_t tx_pending_word_count = 0u;
 volatile uint32_t spi_debug_window_shared = 0u;
 static volatile bool radio_running_shared = false;
 static volatile bool radio_tx_enabled_shared = false;
+static volatile uint8_t active_receiver_count_shared = 1u;
 
 #define RB_COMMAND 0x05
 
@@ -61,11 +62,11 @@ void radioberry_process_command_queue()
 
 static const w5500_network_config_t network_config = {
     .mac = {0x00, 0x08, 0xDC, 0x12, 0x34, 0x56},
-    .ip = {169, 254, 46, 43},
-    .subnet = {255, 255, 0, 0},
+    .ip = {192, 168, 2, 43},
+    .subnet = {255, 255, 255, 0},
     .gateway = {0, 0, 0, 0},
     .dns = {0, 0, 0, 0},
-    .use_dhcp = false
+    .use_dhcp = true
 };
 
 
@@ -177,6 +178,13 @@ static void protocol_command_received(void *user,
     queue_try_add(&command_queue, &message);
 }
 
+static void protocol_receiver_count_changed(void *user,
+                                            uint8_t receiver_count)
+{
+    (void)user;
+    active_receiver_count_shared = receiver_count;
+}
+
 static void protocol_tx_iq_received(void *user,
                                     const uint32_t *words,
                                     size_t word_count)
@@ -188,6 +196,7 @@ static void protocol_tx_iq_received(void *user,
 void core1_main(void)
 {
     bool dma_running = false;
+    uint8_t assembled_receiver_count = 0u;
     static hpsdr_iq_assembler_t assembler = {0};
 
     while (true) {
@@ -197,12 +206,25 @@ void core1_main(void)
         radioberry_process_command_queue();
 
         if (radio_running_shared && !dma_running) {
-            memset(&assembler, 0, sizeof(assembler));
+            if (!hpsdr_iq_assembler_init(&assembler,
+                                         active_receiver_count_shared)) {
+                tight_loop_contents();
+                continue;
+            }
+            assembled_receiver_count = active_receiver_count_shared;
 
             hpsdr_prepare_tx_packet(&hpsdr, &core1_pkt);
             rb_radio_rx_start(&radio);
 
             dma_running = true;
+        }
+
+        if (dma_running &&
+            assembled_receiver_count != active_receiver_count_shared) {
+            hpsdr_iq_assembler_init(&assembler,
+                                    active_receiver_count_shared);
+            assembled_receiver_count = active_receiver_count_shared;
+            hpsdr_prepare_tx_packet(&hpsdr, &core1_pkt);
         }
 
         if (!radio_running_shared && dma_running) {
@@ -304,6 +326,7 @@ int main() {
             .user = NULL,
             .on_state_changed = protocol_state_changed,
             .on_command = protocol_command_received,
+            .on_receiver_count_changed = protocol_receiver_count_changed,
             .on_tx_iq_words = protocol_tx_iq_received
         }
     };
@@ -323,6 +346,8 @@ int main() {
 
     while (true) {
         polls++;
+
+        w5500_network_poll();
 
         if (radio_running_shared && radio_tx_enabled_shared && !tx_running) {
             tx_fill_reset_state();

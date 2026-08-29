@@ -24,6 +24,9 @@ typedef struct {
 
 bool w5500_network_init(const w5500_network_config_t *config);
 
+/* Keep a DHCP lease alive. Safe to call when static addressing is active. */
+void w5500_network_poll(void);
+
 void w5500_udp_transport_init(w5500_udp_t *udp,
                               uint8_t socket,
                               net_datagram_t *transport);

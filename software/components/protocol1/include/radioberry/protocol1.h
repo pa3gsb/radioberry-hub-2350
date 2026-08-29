@@ -13,6 +13,7 @@
 #define HPSDR_COMMAND_COUNT           256u
 #define HPSDR_IQ_PAIRS_PER_PACKET     126u
 #define HPSDR_IQ_WORDS_PER_PACKET     HPSDR_IQ_PAIRS_PER_PACKET
+#define HPSDR_MAX_RECEIVERS           6u
 
 typedef struct {
     uint8_t data[HPSDR_PKT_SIZE];
@@ -20,8 +21,13 @@ typedef struct {
 
 typedef struct {
     bool have_i;
+    bool meta_synced;
     uint32_t i_sample;
-    uint16_t pair_count;
+    uint8_t i_receiver;
+    uint8_t receiver_count;
+    uint8_t groups_per_frame;
+    uint8_t expected_tag;
+    uint16_t group_count;
 } hpsdr_iq_assembler_t;
 
 typedef struct {
@@ -35,6 +41,7 @@ typedef struct {
     void *user;
     void (*on_state_changed)(void *user, bool running, bool tx_enabled);
     void (*on_command)(void *user, uint8_t command, uint32_t data);
+    void (*on_receiver_count_changed)(void *user, uint8_t receiver_count);
     void (*on_tx_iq_words)(void *user,
                            const uint32_t *words,
                            size_t word_count);
@@ -70,6 +77,8 @@ void hpsdr_process_packet(hpsdr_ctx_t *ctx,
                           const uint8_t *buffer,
                           uint16_t len);
 void hpsdr_prepare_tx_packet(hpsdr_ctx_t *ctx, hpsdr_tx_packet_t *packet);
+bool hpsdr_iq_assembler_init(hpsdr_iq_assembler_t *assembler,
+                             uint8_t receiver_count);
 bool hpsdr_process_rx_dma_word(hpsdr_iq_assembler_t *assembler,
                                hpsdr_tx_packet_t *packet,
                                uint32_t raw);

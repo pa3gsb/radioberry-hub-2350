@@ -21,8 +21,11 @@ static const uint8_t sync_hpsdrdata[8] = {
 
 #define HPSDR_FRAME_SIZE_BYTES         512u
 #define HPSDR_FRAME_PAYLOAD_OFFSET     16u
-#define HPSDR_GROUP_STRIDE_BYTES       8u
-#define HPSDR_GROUPS_PER_FRAME         63u
+#define HPSDR_FRAME_PAYLOAD_BYTES      504u
+#define HPSDR_RECEIVER_BYTES           6u
+#define HPSDR_AUDIO_BYTES              2u
+#define HPSDR_TX_GROUP_STRIDE_BYTES    8u
+#define HPSDR_TX_GROUPS_PER_FRAME      63u
 
 #define HERMESLITE             0x06
 
@@ -222,6 +225,17 @@ static void hpsdr_handle_command(hpsdr_ctx_t *ctx,
     if (ctx->commands[command] != command_data) {
         ctx->commands[command] = command_data;
 
+        if (command == 0u &&
+            ctx->callbacks.on_receiver_count_changed != NULL) {
+            uint8_t receiver_count =
+                (uint8_t)(((command_data >> 3u) & 0x07u) + 1u);
+            if (receiver_count > ctx->device.receiver_count) {
+                receiver_count = ctx->device.receiver_count;
+            }
+            ctx->callbacks.on_receiver_count_changed(ctx->callbacks.user,
+                                                     receiver_count);
+        }
+
         if (ctx->callbacks.on_command != NULL) {
             ctx->callbacks.on_command(ctx->callbacks.user,
                                       command,
@@ -250,39 +264,83 @@ static uint16_t read_16be_u16(const uint8_t *src)
                       ((uint16_t)src[1]));
 }
 
+bool hpsdr_iq_assembler_init(hpsdr_iq_assembler_t *a,
+                             uint8_t receiver_count)
+{
+    if (a == NULL || receiver_count == 0u ||
+        receiver_count > HPSDR_MAX_RECEIVERS) {
+        return false;
+    }
+
+    memset(a, 0, sizeof(*a));
+    a->receiver_count = receiver_count;
+    a->groups_per_frame = (uint8_t)(HPSDR_FRAME_PAYLOAD_BYTES /
+        ((uint16_t)receiver_count * HPSDR_RECEIVER_BYTES + HPSDR_AUDIO_BYTES));
+    return a->groups_per_frame != 0u;
+}
+
 bool hpsdr_process_rx_dma_word(
     hpsdr_iq_assembler_t *a,
     hpsdr_tx_packet_t *pkt,
     uint32_t raw)
 {
+    if (a == NULL || pkt == NULL || a->receiver_count == 0u) {
+        return false;
+    }
+
     uint8_t tag = (raw >> 24) & 0x0F;
     uint32_t value = raw & 0x00FFFFFF;
+    uint8_t receiver = tag >> 1u;
 
-    if (tag == 0) {
-        /* Nieuwe I: hiermee synchroniseren we opnieuw. */
+    /* Match the Linux driver: lock on meta 0, then require 0..2*nrx-1. */
+    if (!a->meta_synced) {
+        if (tag != 0u) {
+            return false;
+        }
+        a->meta_synced = true;
+        a->expected_tag = 0u;
+    }
+    if (tag != a->expected_tag || receiver >= a->receiver_count) {
+        a->meta_synced = false;
+        a->have_i = false;
+        return false;
+    }
+
+    if ((tag & 1u) == 0u) {
+        /* Even tags are I; tags 0/1 belong to RX0, 2/3 to RX1, etc. */
         a->i_sample = value;
+        a->i_receiver = receiver;
         a->have_i = true;
+        a->expected_tag = (uint8_t)(tag + 1u);
         return false;
     }
 
-    if (tag != 1 || !a->have_i) {
-        /* Q zonder voorafgaande I, of onbekende tag. */
+    if (!a->have_i || receiver != a->i_receiver || tag != a->expected_tag) {
+        a->meta_synced = false;
+        a->have_i = false;
         return false;
     }
 
-    uint16_t frame = a->pair_count / 63;
-    uint16_t group = a->pair_count % 63;
-    uint16_t index = 16 + frame * 512 + group * 8;
+    uint16_t frame = a->group_count / a->groups_per_frame;
+    uint16_t group = a->group_count % a->groups_per_frame;
+    uint16_t stride = (uint16_t)a->receiver_count * HPSDR_RECEIVER_BYTES +
+                      HPSDR_AUDIO_BYTES;
+    uint16_t index = HPSDR_FRAME_PAYLOAD_OFFSET +
+                     frame * HPSDR_FRAME_SIZE_BYTES + group * stride +
+                     receiver * HPSDR_RECEIVER_BYTES;
 
     write_24be(&pkt->data[index],     a->i_sample);
     write_24be(&pkt->data[index + 3], value);
 
     a->have_i = false;
-    a->pair_count++;
+    a->expected_tag = (uint8_t)((tag + 1u) % (a->receiver_count * 2u));
 
-    if (a->pair_count == 126) {
-        a->pair_count = 0;
-        return true; /* Compleet HPSDR-pakket */
+    if (receiver == (uint8_t)(a->receiver_count - 1u)) {
+        a->group_count++;
+        if (a->group_count == (uint16_t)a->groups_per_frame * 2u) {
+            a->group_count = 0u;
+            return true; /* Complete HPSDR packet with all receivers. */
+        }
     }
 
     return false;
@@ -330,17 +388,17 @@ bool hpsdr_extract_tx_words_from_data_packet(const uint8_t *buffer,
     uint32_t first_q = 0u;
     uint16_t first_i16 = 0u;
     uint16_t first_q16 = 0u;
-    uint8_t first_group[HPSDR_GROUP_STRIDE_BYTES] = {0};
+    uint8_t first_group[HPSDR_TX_GROUP_STRIDE_BYTES] = {0};
     bool first_sample_set = false;
     bool saw_nonzero = false;
 
     for (size_t frame = 0; frame < 2u; frame++) {
         size_t frame_base = frame * HPSDR_FRAME_SIZE_BYTES;
 
-        for (size_t group = 0; group < HPSDR_GROUPS_PER_FRAME; group++) {
+        for (size_t group = 0; group < HPSDR_TX_GROUPS_PER_FRAME; group++) {
             size_t index = HPSDR_FRAME_PAYLOAD_OFFSET +
                            frame_base +
-                           (group * HPSDR_GROUP_STRIDE_BYTES);
+                           (group * HPSDR_TX_GROUP_STRIDE_BYTES);
 
             /*
              * Confirmed TX group layout is 8 bytes where the last 4 bytes are I/Q:
@@ -365,7 +423,7 @@ bool hpsdr_extract_tx_words_from_data_packet(const uint8_t *buffer,
                 first_q = q_sample;
                 first_i16 = read_16be_u16(&buffer[index + 4u]);
                 first_q16 = read_16be_u16(&buffer[index + 6u]);
-                memcpy(first_group, &buffer[index], HPSDR_GROUP_STRIDE_BYTES);
+                memcpy(first_group, &buffer[index], HPSDR_TX_GROUP_STRIDE_BYTES);
                 first_sample_set = true;
             }
             if (i_sample != 0u || q_sample != 0u) {
