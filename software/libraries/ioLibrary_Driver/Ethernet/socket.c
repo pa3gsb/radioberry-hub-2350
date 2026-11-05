@@ -670,13 +670,10 @@ int32_t recv(uint8_t sn, uint8_t * buf, uint16_t len)//lihan
             return SOCKERR_SOCKSTATUS;
          }
       }
-#ifdef IPV6_AVAILABLE
+      /* Nonblocking mode must still consume bytes already buffered. Checking
+       * the mode first made IPv4 TCP recv() return SOCK_BUSY forever. */
       if(recvsize != 0) break;
       if(sock_io_mode & (1<<sn)) return SOCK_BUSY;
-#else
-      if(sock_io_mode & (1<<sn)) return SOCK_BUSY;
-      if(recvsize != 0) break;
-#endif 
    };
 #if _WIZCHIP_ == 5300
    }

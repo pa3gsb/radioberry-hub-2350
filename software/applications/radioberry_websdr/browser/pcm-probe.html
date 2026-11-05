@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark"><title>RadioBerry — audio from the board</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101719;color:#e1eeee;font:16px system-ui,sans-serif}
+main{max-width:780px;margin:auto;padding:24px 18px}a{color:#8cdbd2}h1{font-size:clamp(24px,5vw,34px);margin-top:30px}
+.panel{padding:20px;background:#182326;border:1px solid #304649;border-radius:14px;margin:20px 0}
+.controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap}button{font:inherit;padding:12px 20px;border-radius:8px;border:1px solid #5a9794;background:#264f4d;color:#fff;cursor:pointer}
+button:disabled{opacity:.5;cursor:default}label{display:flex;align-items:center;gap:12px;flex-wrap:wrap}input{max-width:100%;accent-color:#84d8cd}
+.readings{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:20px}dt{font-size:13px;color:#9bb4b7}dd{margin:8px 0;font-size:22px;overflow-wrap:anywhere}p{line-height:1.6}#message{min-height:3em;color:#8cdbd2}
+</style></head><body><main>
+<a href="/">← Back to spectrum and controls</a>
+<h1>Listen over Ethernet</h1>
+<p>The board demodulates AM or SSB and streams audio to this browser. Select the test tone to check the connection. Tune on the main page.</p>
+<section class="panel" aria-label="Audio controls"><div class="controls">
+<button id="listen" type="button">Listen</button><button id="stop" type="button" disabled>Stop</button>
+<label for="audio-mode">Mode <select id="audio-mode"><option value="tone">Test tone · 600 Hz</option><option value="am">AM · 3 kHz audio</option><option value="usb">USB · 300–2700 Hz</option><option value="lsb">LSB · 300–2700 Hz</option></select></label>
+<label for="volume">Volume <input id="volume" type="range" min="0" max="100" value="15"></label></div>
+<p id="message" role="status" aria-live="polite">Ready to listen</p></section>
+<section class="panel" aria-label="Audio connection"><dl class="readings">
+<div><dt>Audio blocks</dt><dd id="blocks">0</dd></div><div><dt>Missing blocks</dt><dd id="missing">0</dd></div>
+<div><dt>Buffer recoveries</dt><dd id="recoveries">0</dd></div><div><dt>Audio buffer</dt><dd id="buffer">0 ms</dd></div>
+<div><dt>Input rate</dt><dd id="rate">0 samples/s</dd></div></dl>
+<p>12 kHz · 16-bit mono · 24 kB/s audio. On the main page, you can listen while viewing the spectrum. Audio pauses when this page is hidden.</p></section>
+<noscript>Enable JavaScript to listen.</noscript>
+</main><script src="pcm-stream.js"></script><script src="pcm-probe.js"></script></body></html>

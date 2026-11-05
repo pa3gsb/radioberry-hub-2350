@@ -10,10 +10,12 @@
 
 /* Eén HPSDR-pakket bevat 126 I/Q-paren: 126 * 2 PIO-woorden. */
 #define STREAM_RX_DMA_BUFFER_COUNT       2u
+#ifndef STREAM_RX_DMA_IQ_PAIRS
 #define STREAM_RX_DMA_IQ_PAIRS           126u
+#endif
 #define STREAM_RX_DMA_WORDS_PER_BUFFER  (STREAM_RX_DMA_IQ_PAIRS * 2u)
 /* 126 IQ-paren × 2 woorden (I en Q). */
-#define STREAM_RX_DMA_WORDS 252u
+#define STREAM_RX_DMA_WORDS STREAM_RX_DMA_WORDS_PER_BUFFER
 
 typedef struct {
     bool have_i;

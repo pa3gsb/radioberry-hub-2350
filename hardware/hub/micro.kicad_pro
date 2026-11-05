@@ -533,7 +533,7 @@
       "gencad": "",
       "idf": "",
       "netlist": "",
-      "plot": "release/beta3/pcb/",
+      "plot": "release/beta4/pcb/",
       "pos_files": "",
       "specctra_dsn": "",
       "step": "",
@@ -548,7 +548,7 @@
       "method": 1,
       "sort_order": 0
     },
-    "bom_export_filename": "release\\beta3\\bom\\micro.csv",
+    "bom_export_filename": "release\\beta4\\bom\\micro.csv",
     "bom_fmt_presets": [],
     "bom_fmt_settings": {
       "field_delimiter": ",",

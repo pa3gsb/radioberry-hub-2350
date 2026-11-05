@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#101719">
+  <title>RadioBerry — browser demo</title>
+  <style>/* INLINE_STYLE */</style>
+</head>
+<body>
+  <main class="receiver">
+    <header class="masthead">
+      <a class="brand" href="#" aria-label="RadioBerry browser demo"><span class="brand-icon" aria-hidden="true">rb</span><span>RadioBerry<small>EXPLORE THE BAND</small></span></a>
+      <span class="demo-badge"><span class="status-dot"></span> <span id="source-badge">BROWSER DEMO</span></span>
+    </header>
+    <section class="tuning panel" aria-label="Frequency controls">
+      <div class="dial-block">
+        <label class="eyebrow" for="frequency">TUNE <span class="muted">/ kHz</span></label>
+        <form id="tune-form" novalidate>
+          <div class="frequency-row">
+            <input id="frequency" name="frequency" value="7100.000" inputmode="decimal" autocomplete="off" spellcheck="false" aria-describedby="frequency-help frequency-error">
+            <button class="tune-button" type="submit" aria-label="Tune to the entered frequency">↵</button>
+          </div>
+          <p id="frequency-help" class="help">Enter a frequency or tap the spectrum.</p>
+          <p id="frequency-error" class="error" role="alert" hidden></p>
+        </form>
+      </div>
+      <div class="tuning-controls">
+        <fieldset class="presets"><legend class="eyebrow">EXPLORE A BAND</legend>
+          <button type="button" data-preset="3650000" aria-pressed="false">80 m</button>
+          <button type="button" data-preset="7100000" aria-pressed="true">40 m</button>
+          <button type="button" data-preset="14200000" aria-pressed="false">20 m</button>
+        </fieldset>
+        <div class="step-controls">
+          <button id="step-down" type="button" aria-label="Tune down one step">−</button>
+          <label class="sr-only" for="step">Tuning step</label>
+          <select id="step"><option value="100">100 Hz / step</option><option value="1000" selected>1 kHz / step</option><option value="10000">10 kHz / step</option></select>
+          <button id="step-up" type="button" aria-label="Tune up one step">+</button>
+        </div>
+      </div>
+    </section>
+    <section class="gain-panel panel" aria-label="Receive gain">
+      <div class="gain-title"><label class="eyebrow" for="rx-gain">RX GAIN</label><span id="gain-status" class="help">AD9866 VGA</span></div>
+      <div class="gain-slider"><span>−12 dB</span><input id="rx-gain" type="range" min="-12" max="48" step="1" value="14" disabled aria-describedby="gain-status"><span>+48 dB</span></div>
+      <output id="gain-value" for="rx-gain">+14 dB</output>
+    </section>
+    <section class="display panel" aria-label="Spectrum and waterfall">
+      <div class="display-toolbar">
+        <div class="display-title"><span id="running-dot" class="status-dot"></span><h1>Band view</h1><span id="run-state">Active</span></div>
+        <div class="display-actions">
+          <label for="span">Span</label>
+          <select id="span"><option value="48000">48 kHz</option><option value="24000">24 kHz</option><option value="12000">12 kHz</option></select>
+          <button id="pause" type="button" aria-pressed="false">Pause</button>
+        </div>
+      </div>
+      <div class="plot-wrap">
+        <div class="passband-caption" title="Nominal filter limits relative to the tuned frequency">
+          <span id="passband-key" class="passband-key" aria-hidden="true" hidden></span>
+          <output id="passband-label" for="audio-mode">Test tone · no receive filter</output>
+        </div>
+        <canvas id="spectrum" tabindex="0" role="img" aria-label="Simulated spectrum. Click or tap to tune; use the arrow keys to tune one step."></canvas>
+        <div class="waterfall-heading"><span>WATERFALL</span><span id="history-status">Latest signals at the top</span></div>
+        <canvas id="waterfall" role="img" aria-label="Waterfall of simulated signals. Latest readings at the top."></canvas>
+      </div>
+      <div class="display-settings">
+        <label class="floor-control" for="floor">Display floor <input id="floor" type="range" min="-125" max="-70" value="-110" step="1"><output id="floor-value" for="floor">−110 dB</output></label>
+        <label for="palette">Colours <select id="palette"><option value="ice">Ice blue</option><option value="turbo">Rainbow</option><option value="classic">Classic</option><option value="viridis">Viridis</option><option value="mono">Greyscale</option></select></label>
+      </div>
+    </section>
+    <section class="panel" style="padding:20px;margin-top:18px" aria-label="Audio from the board">
+      <h2 style="margin-top:0">Listen</h2>
+      <p>Select the station modulation or check the connection using the test tone.</p>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <button id="listen" type="button">Listen</button><button id="stop" type="button" disabled>Stop</button>
+        <label for="audio-mode">Mode <select id="audio-mode"><option value="tone">Test tone · 600 Hz</option><option value="am">AM · 3 kHz audio</option><option value="usb">USB · 300–2700 Hz</option><option value="lsb">LSB · 300–2700 Hz</option></select></label>
+        <label for="volume">Volume <input id="volume" type="range" min="0" max="100" value="15" style="max-width:100%"></label>
+      </div>
+      <p id="message" role="status" aria-live="polite">Ready to listen</p>
+      <div class="agc-controls" aria-label="Automatic gain control">
+        <label for="agc-mode">AGC <select id="agc-mode" disabled><option value="0">Off</option><option value="1">Fast</option><option value="2" selected>Normal</option><option value="3">Slow</option></select></label>
+        <label class="agc-threshold" for="agc-threshold">Threshold <input id="agc-threshold" type="range" min="-100" max="-20" step="1" value="-100" disabled aria-describedby="agc-help agc-status"><output id="agc-value" for="agc-threshold">−100 dBFS</output></label>
+      </div>
+      <p id="agc-help" class="help">A higher threshold reduces the gain applied to weak signals and noise.</p>
+      <p id="agc-status" class="help" role="status">Waiting for the board…</p>
+      <dl style="display:flex;gap:20px;flex-wrap:wrap">
+        <div><dt>Audio blocks</dt><dd id="blocks">0</dd></div><div><dt>Missing</dt><dd id="missing">0</dd></div>
+        <div><dt>Buffer recoveries</dt><dd id="recoveries">0</dd></div><div><dt>Buffer</dt><dd id="buffer">0 ms</dd></div>
+        <div><dt>Input rate</dt><dd id="rate">0 samples/s</dd></div>
+      </dl>
+    </section>
+    <div class="readings" aria-label="Spectrum readings">
+      <div><span class="eyebrow">TUNED TO</span><strong id="tuned-value">7,100,000 <small>Hz</small></strong></div>
+      <div><span class="eyebrow">STRONGEST PEAK</span><strong id="peak-value">— <small>dB rel.</small></strong></div>
+      <div><span class="eyebrow">DISPLAY</span><strong>512 <small>bins · 10/s</small></strong></div>
+      <button id="reset" type="button" class="reset-button">↺ Reset</button>
+    </div>
+    <footer>
+      <p><span class="demo-label">RADIOBERRY</span> <span id="source-description">Synthetic signals. No radio is connected.</span></p>
+      <a id="iq-link" href="iq-probe.html">Test IQ stream</a>
+      <a href="pcm-probe.html">Test audio from the board</a>
+    </footer>
+    <noscript>Enable JavaScript to view the browser demo.</noscript>
+  </main>
+  <!-- Generated offline by build.ps1. UberSDR helper source: GPL-3.0;
+       see LICENSE-ubersdr.txt distributed with this page. -->
+  <script src="pcm-stream.js"></script><script src="pcm-probe.js"></script>
+  <script>/* INLINE_SCRIPT */</script>
+</body>
+</html>

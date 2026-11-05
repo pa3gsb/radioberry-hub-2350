@@ -1,0 +1,135 @@
+// From madpsy/ka9q_ubersdr, static/v2/src/lib/palettes.js
+// Commit: a18b58aa8865adafa95fa2fe4110d503fe102f7b
+// Repository license: GNU GPL v3; see ../../../README.md and ../../../LICENSE-ubersdr.txt.
+// Extracted 2026-10-10. Original module retained in full.
+
+// Waterfall colour maps.
+//
+// Each palette is a short list of control points that gets expanded into a
+// 256-entry Uint8ClampedArray LUT (RGB triplets) once, at module load.
+
+const STOPS = {
+    turbo: [
+        [0.00, 48, 18, 59], [0.13, 70, 107, 227], [0.25, 54, 168, 237],
+        [0.38, 42, 217, 184], [0.50, 118, 244, 112], [0.63, 200, 246, 56],
+        [0.75, 253, 197, 39], [0.88, 245, 111, 25], [1.00, 122, 4, 3],
+    ],
+    viridis: [
+        [0.00, 68, 1, 84], [0.25, 59, 82, 139], [0.50, 33, 145, 140],
+        [0.75, 94, 201, 98], [1.00, 253, 231, 37],
+    ],
+    inferno: [
+        [0.00, 0, 0, 4], [0.25, 87, 16, 110], [0.50, 188, 55, 84],
+        [0.75, 249, 142, 9], [1.00, 252, 255, 164],
+    ],
+    magma: [
+        [0.00, 0, 0, 4], [0.25, 81, 18, 124], [0.50, 183, 55, 121],
+        [0.75, 252, 137, 97], [1.00, 252, 253, 191],
+    ],
+    // Classic SDR look: black -> blue -> cyan -> yellow -> white
+    classic: [
+        [0.00, 0, 0, 0], [0.20, 0, 0, 140], [0.40, 0, 160, 220],
+        [0.62, 240, 230, 60], [0.82, 240, 90, 30], [1.00, 255, 255, 255],
+    ],
+    // Monochrome, for print-like clarity
+    mono: [
+        [0.00, 4, 5, 8], [1.00, 245, 248, 255],
+    ],
+    // Cool single-hue that matches the UI accent
+    ice: [
+        [0.00, 4, 8, 16], [0.35, 12, 66, 104], [0.7, 62, 180, 208],
+        [1.00, 226, 250, 255],
+    ],
+    // A radar scope: one green hue from an unlit tube up to a hot trace.
+    //
+    // Single-hue and monotonically brighter, which is what a magnitude scale
+    // wants — every step reads as "more" without the eye having to learn a hue
+    // order first, the way it must with turbo. The hue stays around 140-150°
+    // and only the lightness climbs, so a strong signal cannot be mistaken for
+    // a differently-coloured weak one.
+    //
+    // It ends white rather than at full green: a phosphor tube blooms towards
+    // white where it is driven hardest, and holding a pure hue at the top would
+    // waste the last of the range, since #00ff41 and the green below it are
+    // close in lightness even though they are far apart in signal.
+    radar: [
+        [0.00, 2, 10, 5], [0.30, 6, 54, 24], [0.55, 12, 122, 46],
+        [0.78, 46, 200, 78], [0.92, 130, 240, 132], [1.00, 226, 255, 226],
+    ],
+};
+
+// The dial line and the passband edges, per palette.
+//
+// A waterfall shows the *whole* colour map at once, so a marker colour cannot be
+// chosen against a background — there isn't one. What it can do is pick a hue
+// the palette never reaches: every one of these maps sweeps a limited arc of the
+// hue circle, and a line from outside that arc stays legible wherever it lands.
+// (The dark outline every mark is drawn with, in SpectrumView's markLine, is the
+// other half of it and does the work on lightness.)
+//
+// So each entry names two hues the map below it does not contain, the louder one
+// for the dial:
+//
+//   turbo    sweeps purple → blue → cyan → green → yellow → red, i.e. nearly all
+//            of it. What it never reaches is magenta, so both marks come from
+//            there and are told apart by lightness instead.
+//   viridis  purple → teal → yellow: no red, and no magenta.
+//   inferno  black → purple → red → orange → pale yellow: no cyan, no green.
+//   magma    the same arc as inferno, a little pinker.
+//   classic  black → blue → cyan → yellow → white: no green, no magenta.
+//   mono     no hue at all, so anything saturated reads; amber and cyan are the
+//            two the rest of the UI already uses.
+//   ice      one cool hue up to white: the warm half of the circle is free.
+//   radar    one green hue up to white: likewise, plus magenta.
+const MARKS = {
+    turbo: { vfo: '#ff2ec4', edge: '#ff9ad5' },
+    viridis: { vfo: '#ff4d4d', edge: '#ff2ec4' },
+    inferno: { vfo: '#34e5ff', edge: '#5cff8f' },
+    magma: { vfo: '#34e5ff', edge: '#7dff5c' },
+    classic: { vfo: '#ff2ec4', edge: '#5cff8f' },
+    mono: { vfo: '#ffd166', edge: '#34e5ff' },
+    ice: { vfo: '#ffb020', edge: '#ff2ec4' },
+    radar: { vfo: '#ffd166', edge: '#ff2ec4' },
+};
+
+// Fallback for a palette name that is not one of ours — the amber the theme has
+// always used for the dial, and v1's green for the passband.
+const MARKS_FALLBACK = { vfo: '#ffd166', edge: '#00ff00' };
+
+/** { vfo, edge } — marker colours that contrast with this palette. */
+export function paletteMarks(name) {
+    return MARKS[name] || MARKS_FALLBACK;
+}
+
+function buildLUT(stops) {
+    const lut = new Uint8ClampedArray(256 * 3);
+    let seg = 0;
+    for (let i = 0; i < 256; i++) {
+        const t = i / 255;
+        while (seg < stops.length - 2 && t > stops[seg + 1][0]) seg++;
+        const a = stops[seg];
+        const b = stops[seg + 1];
+        const span = b[0] - a[0] || 1;
+        const f = (t - a[0]) / span;
+        lut[i * 3 + 0] = a[1] + (b[1] - a[1]) * f;
+        lut[i * 3 + 1] = a[2] + (b[2] - a[2]) * f;
+        lut[i * 3 + 2] = a[3] + (b[3] - a[3]) * f;
+    }
+    return lut;
+}
+
+const CACHE = {};
+for (const name of Object.keys(STOPS)) CACHE[name] = buildLUT(STOPS[name]);
+
+export const PALETTE_NAMES = Object.keys(STOPS);
+
+export function getPalette(name) {
+    return CACHE[name] || CACHE.turbo;
+}
+
+// CSS gradient string for palette swatches in the UI.
+export function paletteGradient(name) {
+    const stops = STOPS[name] || STOPS.turbo;
+    const parts = stops.map(([t, r, g, b]) => `rgb(${r},${g},${b}) ${(t * 100).toFixed(0)}%`);
+    return `linear-gradient(90deg, ${parts.join(', ')})`;
+}

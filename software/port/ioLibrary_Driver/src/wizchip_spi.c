@@ -349,10 +349,18 @@ void wizchip_initialize(void)
         Overige sockets:
         0 KB
     */
+#ifdef RADIOBERRY_WEBSDR_NETWORK
+    /* HTTP sockets 0, 2, 3; DHCP socket 1. 14 KB per direction. */
+    uint8_t memsize[2][8] = {
+        {4, 2, 4, 4, 0, 0, 0, 0},
+        {4, 2, 4, 4, 0, 0, 0, 0}
+    };
+#else
     uint8_t memsize[2][8] = {
         {8, 2, 0, 0, 0, 0, 0, 0},
         {8, 2, 0, 0, 0, 0, 0, 0}
     };
+#endif
 #elif (_WIZCHIP_ == W6100)
     uint8_t memsize[2][8] = {
         {2, 2, 2, 2, 2, 2, 2, 2},
@@ -374,12 +382,17 @@ void wizchip_initialize(void)
         return;
     }
 
+#ifndef RADIOBERRY_WEBSDR_NETWORK
     do {
         if (ctlwizchip(CW_GET_PHYLINK, (void *)&temp) == -1) {
             printf("Unknown PHY link status\r\n");
             return;
         }
     } while (temp == PHY_LINK_OFF);
+#else
+    /* DHCP has a bounded startup wait, even with an unplugged cable. */
+    (void)temp;
+#endif
 }
 
 void wizchip_check(void)

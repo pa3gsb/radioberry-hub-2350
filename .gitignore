@@ -1,2 +1,4 @@
 /hardware/hub/.history/
 /hardware/hub/micro-backups/
+# KiCad lock files
+*.lck

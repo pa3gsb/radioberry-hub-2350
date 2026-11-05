@@ -5,6 +5,12 @@ build/
 build-*/
 out/
 
+# External SDK and generated standalone browser preview
+/libraries/pico-sdk/
+/applications/radioberry_websdr/browser/index.html
+__pycache__/
+*.py[cod]
+
 # CMake generated files
 CMakeCache.txt
 CMakeFiles/
